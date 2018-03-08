@@ -129,15 +129,15 @@ func TestStoragePackerV2_Delete(t *testing.T) {
 	sp, err := NewStoragePackerV2(&Config{
 		View:             &logical.InmemStorage{},
 		Logger:           log.New("storagepackertest"),
-		BucketCount:      8,
-		BucketShardCount: 4,
-		BucketMaxSize:    512,
+		BucketCount:      256,
+		BucketShardCount: 32,
+		BucketMaxSize:    512 * 1024,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	count := 1000000
+	count := 100000
 
 	for i := 1; i <= count; i++ {
 		if i%500 == 0 {
