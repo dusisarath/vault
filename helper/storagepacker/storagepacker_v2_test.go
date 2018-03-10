@@ -2,11 +2,13 @@ package storagepacker
 
 import (
 	"fmt"
+	"io/ioutil"
 	"strconv"
 	"testing"
 
 	"github.com/golang/protobuf/ptypes"
 	"github.com/hashicorp/vault/helper/identity"
+	"github.com/hashicorp/vault/helper/logformat"
 	"github.com/hashicorp/vault/logical"
 	log "github.com/mgutz/logxi/v1"
 )
@@ -126,18 +128,36 @@ func Benchmark_StoragePackerV2_Sharding(b *testing.B) {
 }
 
 func TestStoragePackerV2_Delete(t *testing.T) {
+	filePath, err := ioutil.TempDir(".", "vault")
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	fmt.Printf("filePath: %q\n", filePath)
+	//defer os.RemoveAll(filePath)
+
+	logger := logformat.NewVaultLogger(log.LevelTrace)
+
+	config := map[string]string{
+		"path": filePath,
+	}
+
+	storage, err := logical.NewLogicalStorage(logical.LogicalTypeFile, config, logger)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	sp, err := NewStoragePackerV2(&Config{
-		View:             &logical.InmemStorage{},
+		View:             storage,
 		Logger:           log.New("storagepackertest"),
-		BucketCount:      256,
-		BucketShardCount: 32,
-		BucketMaxSize:    512 * 1024,
+		BucketCount:      8,
+		BucketShardCount: 4,
+		BucketMaxSize:    512,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	count := 100000
+	count := 1000
 
 	for i := 1; i <= count; i++ {
 		if i%500 == 0 {
