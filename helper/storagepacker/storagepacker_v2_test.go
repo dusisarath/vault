@@ -86,23 +86,6 @@ func testDeleteItem(t *testing.T, sp *StoragePackerV2, count int) {
 	}
 }
 
-func TestStoragePackerV2_Put(t *testing.T) {
-	sp, err := NewStoragePackerV2(&Config{
-		View:   &logical.InmemStorage{},
-		Logger: log.New("storagepackertest"),
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	entity := &identity.Entity{
-		Metadata: map[string]string{
-			"samplekey": "samplevalue",
-		},
-	}
-	testPutItem(t, sp, 100, entity)
-}
-
 func TestStoragePackerV2_PutGetDeleteInmem(t *testing.T) {
 	sp, err := NewStoragePackerV2(&Config{
 		View:   &logical.InmemStorage{},
