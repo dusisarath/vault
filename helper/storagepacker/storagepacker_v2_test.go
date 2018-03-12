@@ -107,7 +107,7 @@ func TestStoragePackerV2_PutGetDeleteInmem(t *testing.T) {
 			"samplekey": "samplevalue",
 		},
 	}
-	count := 100
+	count := 1000
 	testPutItem(t, sp, count, entity)
 	testGetItem(t, sp, count, false)
 	testDeleteItem(t, sp, count)
@@ -144,7 +144,7 @@ func TestStoragePackerV2_PutGetDelete_File(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	count := 10000
+	count := 1000
 	entity := &identity.Entity{
 		Metadata: map[string]string{
 			"samplekey1": "samplevalue1",

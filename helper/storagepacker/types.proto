@@ -25,7 +25,7 @@ message BucketV2{
 	// ItemsMap holds the items contained within this bucket
 	map <string, Item> items = 4;
 	// IsShard indicates if the bucket is pushed out of its parent bucket
-	bool IsShard = 5;
+	bool external = 5;
 	// Depth indicates the hierarchical positioning of the bucket
 	int32 depth = 6;
 	// Size of the bucket in number of bytes

@@ -128,10 +128,6 @@ func (s *StoragePackerV2) putItemIntoBucket(bucket *BucketV2, item *Item) (strin
 		// Create the bucket shard to hold the item with an incremented depth
 		bucketShard = s.newBucket(shardKey, bucket.Depth+1)
 
-		// Mark the new bucket as a shard to indicate that it resides in its
-		// parent bucket
-		bucketShard.IsShard = true
-
 		// Add the newly created bucket shard to the parent bucket
 		bucket.Buckets[shardIndex] = bucketShard
 	}
@@ -142,8 +138,8 @@ func (s *StoragePackerV2) putItemIntoBucket(bucket *BucketV2, item *Item) (strin
 	}
 
 	// If the bucket shard is already pushed out, continue the operation in the
-	// pushed out shard.
-	if !bucketShard.IsShard {
+	// external bucket
+	if bucketShard.External {
 		externalBucket, err := s.GetBucket(bucketShard.Key)
 		if err != nil {
 			return "", err
@@ -177,9 +173,9 @@ func (s *StoragePackerV2) putItemIntoBucket(bucket *BucketV2, item *Item) (strin
 	// an independent bucket and insert the item in the pushed out bucket.
 	//
 
-	// Mark the bucket shard as not-a-shard anymore, indicating that it doesn't
+	// Mark the bucket shard as external, indicating that it doesn't
 	// reside in its parent bucket
-	bucketShard.IsShard = false
+	bucketShard.External = true
 
 	// Clone the bucket and use the clone as the pushed out bucket
 	externalBucket, err := bucketShard.Clone()
@@ -303,8 +299,8 @@ func (s *StoragePackerV2) getItemFromBucket(bucket *BucketV2, itemID string) (*I
 	}
 
 	// If the bucket shard is already pushed out, continue the operation in the
-	// pushed out bucket
-	if !bucketShard.IsShard {
+	// external
+	if bucketShard.External {
 		externalBucket, err := s.GetBucket(bucketShard.Key)
 		if err != nil {
 			return nil, err
@@ -351,7 +347,7 @@ func (s *StoragePackerV2) deleteItemFromBucket(bucket *BucketV2, itemID string) 
 
 	// If the bucket shard is already pushed out, continue the operation in the
 	// pushed out bucket
-	if !bucketShard.IsShard {
+	if bucketShard.External {
 		externalBucket, err := s.GetBucket(bucketShard.Key)
 		if err != nil {
 			return nil, err
@@ -446,7 +442,6 @@ func (s *StoragePackerV2) splitItemsInBucket(bucket *BucketV2) error {
 			bucketShard = s.newBucket(shardKey, bucket.Depth+1)
 			bucket.Buckets[shardIndex] = bucketShard
 		}
-		bucketShard.IsShard = true
 		bucketShard.Items[itemID] = item
 	}
 
