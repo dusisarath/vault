@@ -8,7 +8,6 @@ import (
 
 	"github.com/golang/protobuf/proto"
 	"github.com/hashicorp/errwrap"
-	"github.com/hashicorp/vault/helper/compressutil"
 	"github.com/hashicorp/vault/helper/strutil"
 
 	"github.com/hashicorp/vault/helper/cryptoutil"
@@ -74,23 +73,6 @@ func (b *BucketV2) Clone() (*BucketV2, error) {
 	}
 
 	return &clonedBucket, nil
-}
-
-// serialize proto marshals and snappy compresses the bucket
-func (b *BucketV2) serialize() ([]byte, error) {
-	marshaledBucket, err := proto.Marshal(b)
-	if err != nil {
-		return nil, err
-	}
-
-	compressedBucket, err := compressutil.Compress(marshaledBucket, &compressutil.CompressionConfig{
-		Type: compressutil.CompressionTypeSnappy,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return compressedBucket, nil
 }
 
 // putItemIntoBucket is a recursive function that finds the appropriate bucket
@@ -180,7 +162,7 @@ func (s *StoragePackerV2) putItemIntoBucket(bucket *BucketV2, item *Item) (strin
 	bucketShard.Items[item.ID] = item
 
 	// Check if the bucket exceeds the size limit after the addition
-	limitExceeded, err := s.bucketExceedsSizeLimit(bucket)
+	limitExceeded, err := s.bucketExceedsSizeLimit(bucket, item)
 	if err != nil {
 		return "", err
 	}
@@ -239,19 +221,19 @@ func (s *StoragePackerV2) GetBucket(key string) (*BucketV2, error) {
 		return nil, nil
 	}
 
-	uncompressedData, notCompressed, err := compressutil.Decompress(entry.Value)
+	var bucketWrapper BucketWrapper
+	err = proto.Unmarshal(entry.Value, &bucketWrapper)
 	if err != nil {
-		return nil, errwrap.Wrapf("failed to decompress bucket: {{err}}", err)
-	}
-	if notCompressed {
-		uncompressedData = entry.Value
+		return nil, errwrap.Wrapf("failed to decode bucket wrapper: {{err}}", err)
 	}
 
 	var bucket BucketV2
-	err = proto.Unmarshal(uncompressedData, &bucket)
+	err = proto.Unmarshal(bucketWrapper.Data, &bucket)
 	if err != nil {
 		return nil, errwrap.Wrapf("failed to decode bucket: {{err}}", err)
 	}
+
+	bucket.Size = bucketWrapper.Size
 
 	return &bucket, nil
 }
@@ -270,23 +252,24 @@ func (s *StoragePackerV2) PutBucket(bucket *BucketV2) error {
 		return fmt.Errorf("bucket entry key should have %q prefix", s.config.ViewPrefix)
 	}
 
-	serializedBucket, err := bucket.serialize()
+	marshaledBucket, err := proto.Marshal(bucket)
 	if err != nil {
 		return err
 	}
 
-	// For testing. Remove later
-	bucketSize, err := s.bucketSize(bucket)
+	bucketWrapper := &BucketWrapper{
+		Data: marshaledBucket,
+		Size: int64(len(marshaledBucket)),
+	}
+
+	marshaledWrapper, err := proto.Marshal(bucketWrapper)
 	if err != nil {
 		return err
-	}
-	if bucketSize > s.config.BucketMaxSize {
-		return fmt.Errorf("bucket %q size of %d exceeding the limit of %d", bucket.Key, bucketSize, s.config.BucketMaxSize)
 	}
 
 	return s.config.View.Put(context.Background(), &logical.StorageEntry{
 		Key:   bucket.Key,
-		Value: serializedBucket,
+		Value: marshaledWrapper,
 	})
 }
 
@@ -428,11 +411,13 @@ func (s *StoragePackerV2) DeleteItem(itemID string) error {
 
 // bucketExceedsSizeLimit indicates if the given bucket is exceeding the
 // configured size limit on the storage packer
-func (s *StoragePackerV2) bucketExceedsSizeLimit(bucket *BucketV2) (bool, error) {
-	bucketSize, err := s.bucketSize(bucket)
+func (s *StoragePackerV2) bucketExceedsSizeLimit(bucket *BucketV2, item *Item) (bool, error) {
+	marshaledItem, err := proto.Marshal(item)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("failed to marshal item: %v", err)
 	}
+
+	size := bucket.Size + int64(len(marshaledItem))
 
 	// Sharding of buckets begins when the size of the bucket reaches 90% of
 	// the maximum allowed size. Hopefully, this compensates for data structure
@@ -440,17 +425,7 @@ func (s *StoragePackerV2) bucketExceedsSizeLimit(bucket *BucketV2) (bool, error)
 	// imposed by the underlying physical backend.
 	max := math.Ceil((float64(s.config.BucketMaxSize) * float64(90)) / float64(100))
 
-	return float64(bucketSize) > max, nil
-}
-
-// bucketSize is the number of bytes in the serialized bucket
-func (s *StoragePackerV2) bucketSize(bucket *BucketV2) (int64, error) {
-	serializedBucket, err := bucket.serialize()
-	if err != nil {
-		return 0, err
-	}
-
-	return int64(len(serializedBucket)), nil
+	return float64(size) > max, nil
 }
 
 // splitItemsInBucket breaks the list of items in the bucket and divides them

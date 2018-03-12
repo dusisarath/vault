@@ -3,7 +3,6 @@ package storagepacker
 import (
 	"fmt"
 	"io/ioutil"
-	"os"
 	"strconv"
 	"testing"
 
@@ -113,7 +112,7 @@ func TestStoragePackerV2_PutGetDelete_File(t *testing.T) {
 		t.Fatalf("err: %s", err)
 	}
 	fmt.Printf("filePath: %q\n", filePath)
-	defer os.RemoveAll(filePath)
+	//defer os.RemoveAll(filePath)
 
 	logger := logformat.NewVaultLogger(log.LevelTrace)
 
@@ -129,15 +128,15 @@ func TestStoragePackerV2_PutGetDelete_File(t *testing.T) {
 	sp, err := NewStoragePackerV2(&Config{
 		View:             storage,
 		Logger:           log.New("storagepackertest"),
-		BucketCount:      256,
-		BucketShardCount: 32,
-		BucketMaxSize:    512 * 1024,
+		BucketCount:      8,
+		BucketShardCount: 4,
+		BucketMaxSize:    512,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	count := 100
+	count := 10000
 	entity := &identity.Entity{
 		Metadata: map[string]string{
 			"samplekey1": "samplevalue1",

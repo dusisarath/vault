@@ -12,6 +12,11 @@ message Item {
 	google.protobuf.Any message = 2;
 }
 
+message BucketWrapper {
+	bytes data = 1;
+	int64 size = 2;
+}
+
 message BucketV2{
 	// Key is the storage path where the bucket gets stored
 	string key = 1;
@@ -23,6 +28,8 @@ message BucketV2{
 	bool IsShard = 5;
 	// Depth indicates the hierarchical positioning of the bucket
 	int32 depth = 6;
+	// Size of the bucket in number of bytes
+	int64 size = 7;
 }
 
 // Bucket is the entity that holds the packed items. It can
