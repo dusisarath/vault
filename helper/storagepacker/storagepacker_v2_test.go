@@ -3,6 +3,7 @@ package storagepacker
 import (
 	"fmt"
 	"io/ioutil"
+	"os"
 	"strconv"
 	"testing"
 
@@ -16,6 +17,9 @@ import (
 func testPutItem(t *testing.T, sp *StoragePackerV2, count int, entity *identity.Entity) {
 	t.Helper()
 	for i := 1; i <= count; i++ {
+		if i%500 == 0 {
+			fmt.Printf("put item iteration: %d\n", i)
+		}
 		id := strconv.Itoa(i)
 		entity.ID = id
 
@@ -42,7 +46,11 @@ func testPutItem(t *testing.T, sp *StoragePackerV2, count int, entity *identity.
 func testGetItem(t *testing.T, sp *StoragePackerV2, count int, expectNil bool) {
 	t.Helper()
 	for i := 1; i <= count; i++ {
+		if i%500 == 0 {
+			fmt.Printf("get item iteration: %d\n", i)
+		}
 		id := strconv.Itoa(i)
+
 		itemFetched, err := sp.GetItem(id)
 		if err != nil {
 			t.Fatal(err)
@@ -112,7 +120,7 @@ func TestStoragePackerV2_PutGetDelete_File(t *testing.T) {
 		t.Fatalf("err: %s", err)
 	}
 	fmt.Printf("filePath: %q\n", filePath)
-	//defer os.RemoveAll(filePath)
+	defer os.RemoveAll(filePath)
 
 	logger := logformat.NewVaultLogger(log.LevelTrace)
 
@@ -128,9 +136,9 @@ func TestStoragePackerV2_PutGetDelete_File(t *testing.T) {
 	sp, err := NewStoragePackerV2(&Config{
 		View:             storage,
 		Logger:           log.New("storagepackertest"),
-		BucketCount:      8,
-		BucketShardCount: 4,
-		BucketMaxSize:    512,
+		BucketCount:      256,
+		BucketShardCount: 32,
+		BucketMaxSize:    512 * 1024,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -151,63 +159,4 @@ func TestStoragePackerV2_PutGetDelete_File(t *testing.T) {
 	testGetItem(t, sp, count, false)
 	testDeleteItem(t, sp, count)
 	testGetItem(t, sp, count, true)
-}
-
-func Benchmark_StoragePackerV2_Sharding(b *testing.B) {
-	sp, err := NewStoragePackerV2(&Config{
-		View:             &logical.InmemStorage{},
-		Logger:           log.New("storagepackertest"),
-		BucketCount:      8,
-		BucketShardCount: 2,
-		BucketMaxSize:    256,
-	})
-	if err != nil {
-		b.Fatal(err)
-	}
-
-	for i := 0; i < b.N; i++ {
-		id := strconv.Itoa(i)
-		message := &identity.Entity{
-			ID: id,
-			Metadata: map[string]string{
-				"samplekey": "samplevalue",
-			},
-		}
-
-		marshaledMessage, err := ptypes.MarshalAny(message)
-		if err != nil {
-			b.Fatal(err)
-		}
-
-		item := &Item{
-			ID:      id,
-			Message: marshaledMessage,
-		}
-		if err != nil {
-			b.Fatal(err)
-		}
-
-		bucketKey, err := sp.PutItem(item)
-		if err != nil {
-			b.Fatal(err)
-		}
-
-		itemFetched, err := sp.GetItem(id)
-		if err != nil {
-			b.Fatal(err)
-		}
-		if itemFetched == nil {
-			b.Fatalf("failed to read the inserted item; iteration: %d, bucketKey: %q, itemID: %q\n", i, bucketKey, id)
-		}
-
-		var fetchedMessage identity.Entity
-		err = ptypes.UnmarshalAny(itemFetched.Message, &fetchedMessage)
-		if err != nil {
-			b.Fatal(err)
-		}
-
-		if fetchedMessage.ID != id {
-			b.Fatalf("failed to fetch item ID: %q\n", id)
-		}
-	}
 }
