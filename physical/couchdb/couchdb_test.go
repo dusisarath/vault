@@ -25,7 +25,7 @@ func TestCouchDBBackend(t *testing.T) {
 		"endpoint": endpoint,
 		"username": username,
 		"password": password,
-		"limit": limit
+		"limit": limit,
 	}, logger)
 	if err != nil {
 		t.Fatalf("err: %s", err)
@@ -45,7 +45,7 @@ func TestTransactionalCouchDBBackend(t *testing.T) {
 		"endpoint": endpoint,
 		"username": username,
 		"password": password,
-		"limit": limit
+		"limit": limit,
 	}, logger)
 	if err != nil {
 		t.Fatalf("err: %s", err)
