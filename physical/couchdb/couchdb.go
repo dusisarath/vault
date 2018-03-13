@@ -36,6 +36,7 @@ type couchDBClient struct {
 	endpoint string
 	username string
 	password string
+	limit string
 	*http.Client
 }
 
@@ -123,7 +124,7 @@ func (m *couchDBClient) list(prefix string) ([]couchDBListItem, error) {
 	req.SetBasicAuth(m.username, m.password)
 	values := req.URL.Query()
 	values.Set("skip", "0")
-	values.Set("limit", "100")
+	values.Set("limit", m.limit)
 	values.Set("include_docs", "false")
 	if prefix != "" {
 		values.Set("startkey", fmt.Sprintf("%q", prefix))
@@ -169,6 +170,14 @@ func buildCouchDBBackend(conf map[string]string, logger log.Logger) (*CouchDBBac
 		password = conf["password"]
 	}
 
+	limit := os.Getenv("COUCHDB_LIMIT")
+	if limit == "" {
+		limit = conf["couchdb_limit"]
+	}
+	if limit == "" {
+		limit = "100"
+	}
+
 	maxParStr, ok := conf["max_parallel"]
 	var maxParInt int
 	var err error
@@ -187,6 +196,7 @@ func buildCouchDBBackend(conf map[string]string, logger log.Logger) (*CouchDBBac
 			endpoint: endpoint,
 			username: username,
 			password: password,
+			limit:limit,
 			Client:   cleanhttp.DefaultPooledClient(),
 		},
 		logger:     logger,
