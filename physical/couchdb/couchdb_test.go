@@ -16,7 +16,7 @@ import (
 )
 
 func TestCouchDBBackend(t *testing.T) {
-	cleanup, endpoint, username, password := prepareCouchdbDBTestContainer(t)
+	cleanup, endpoint, username, password, limit := prepareCouchdbDBTestContainer(t)
 	defer cleanup()
 
 	logger := logformat.NewVaultLogger(log.LevelTrace)
@@ -25,6 +25,7 @@ func TestCouchDBBackend(t *testing.T) {
 		"endpoint": endpoint,
 		"username": username,
 		"password": password,
+		"limit": limit
 	}, logger)
 	if err != nil {
 		t.Fatalf("err: %s", err)
@@ -35,7 +36,7 @@ func TestCouchDBBackend(t *testing.T) {
 }
 
 func TestTransactionalCouchDBBackend(t *testing.T) {
-	cleanup, endpoint, username, password := prepareCouchdbDBTestContainer(t)
+	cleanup, endpoint, username, password, limit := prepareCouchdbDBTestContainer(t)
 	defer cleanup()
 
 	logger := logformat.NewVaultLogger(log.LevelTrace)
@@ -44,6 +45,7 @@ func TestTransactionalCouchDBBackend(t *testing.T) {
 		"endpoint": endpoint,
 		"username": username,
 		"password": password,
+		"limit": limit
 	}, logger)
 	if err != nil {
 		t.Fatalf("err: %s", err)
